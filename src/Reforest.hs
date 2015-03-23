@@ -58,15 +58,15 @@ prods a = filter ((== a) . lhs)
 data Digram = Digram Sym Int Sym
             deriving (Eq, Ord, Show)
 
-listDigrams' :: Term -> [Digram]
-listDigrams' (App s xs) = localDigrams 0 xs ++ concatMap listDigrams' xs
+listDigrams' :: Term -> [Digram] -> [Digram]
+listDigrams' (App s xs) = localDigrams 0 xs
   where
-    localDigrams _ [] = []
-    localDigrams i (App (Bnd _) _ : ys) = localDigrams (i+1) ys
-    localDigrams i (App r _ : ys) = Digram s i r : localDigrams (i+1) ys
+    localDigrams _ [] = id
+    localDigrams i (y@(App (Bnd _) _) : ys) = listDigrams' y . localDigrams (i+1) ys
+    localDigrams i (y@(App r _) : ys) = listDigrams' y . (Digram s i r :) . localDigrams (i+1) ys
 
 listDigrams :: Grammar -> [Digram]
-listDigrams = concatMap (listDigrams' . rhs)
+listDigrams = foldr (listDigrams' . rhs) []
 
 frequencies :: Ord a => [a] -> [(a, Int)]
 frequencies = map (\g -> (head g, length g)) . group . sort
