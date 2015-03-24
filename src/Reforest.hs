@@ -1,4 +1,5 @@
 module Reforest where
+import Control.Arrow
 import Data.List
 import Data.Function
 import Data.Maybe
@@ -69,7 +70,7 @@ listDigrams :: Grammar -> [Digram]
 listDigrams = foldr (listDigrams' . rhs) []
 
 frequencies :: Ord a => [a] -> [(a, Int)]
-frequencies = map (\g -> (head g, length g)) . group . sort
+frequencies = map (head &&& length) . group . sort
 
 sortedDigrams :: Grammar -> [(Digram, Int)]
 sortedDigrams = sortBy (flip compare `on` snd) . frequencies . listDigrams
@@ -93,7 +94,7 @@ abbreviateDigramBy d@(Digram s i r) nt (App f xs)
   | otherwise = App f (map (abbreviateDigramBy d nt) xs)
 
 abbreviateMostCommonDigram :: Grammar -> Grammar
-abbreviateMostCommonDigram g = abbreviateDigram (fst (sortedDigrams g !! 0)) g
+abbreviateMostCommonDigram g = abbreviateDigram (fst $ head $ sortedDigrams g) g
 
 digramCompression :: Grammar -> Grammar
 digramCompression g = if f == 1 then g else digramCompression (abbreviateDigram dg g)
@@ -108,11 +109,8 @@ extractSimpleARule :: Production -> Maybe (Sym, Sym)
 extractSimpleARule (Prod (NT _ 0) (App s [App r []])) = Just (s, r)
 extractSimpleARule _ = Nothing
 
-a0SplitR :: ([Sym], [Sym]) -> Grammar -> Grammar
-a0SplitR (ss, rs) g = aSplitR (NT 0 0) (ss, rs) g
-
-aSplitR :: NonTerm -> ([Sym], [Sym]) -> Grammar -> Grammar
-aSplitR a (ss, rs) g = newProds ++ filter (not . isSubsumed) g
+splitR :: NonTerm -> ([Sym], [Sym]) -> Grammar -> Grammar
+splitR a (ss, rs) g = newProds ++ filter (not . isSubsumed) g
   where
     isSubsumed p@(Prod b _) =
       case extractSimpleARule p of
@@ -122,29 +120,10 @@ aSplitR a (ss, rs) g = newProds ++ filter (not . isSubsumed) g
     newProds = [ Prod a (App s [App (Var newNT) []]) | s <- ss ]
             ++ [ Prod newNT (App r []) | r <- rs ]
 
-a0SplitL :: ([Sym], [Sym]) -> Grammar -> Grammar
-a0SplitL (ss, rs) g = newProds ++ filter (not . isSubsumed) g
-  where
-    isSubsumed p = case extractSimpleA0Rule p of
-                     Just (s, r) -> s `elem` ss && r `elem` rs
-                     Nothing -> False
-    newNT = NT (maxNonTermNo g + 1) 1
-    newProds = [ Prod (NT 0 0) (App (Var newNT) [App r []]) | r <- rs ]
-            ++ [ Prod newNT (App s [App (Bnd 0) []]) | s <- ss ]
-
-naiveA0SplitR :: Grammar -> Grammar
-naiveA0SplitR = naiveSplitR (NT 0 0)
-
 naiveSplitR :: NonTerm -> Grammar -> Grammar
-naiveSplitR a g = aSplitR a biclique g
+naiveSplitR a g = splitR a biclique g
     where
       edges = mapMaybe extractSimpleARule $ prods a g
-      biclique = (nub' (map fst edges), nub' (map snd edges))
-
-naiveA0SplitL :: Grammar -> Grammar
-naiveA0SplitL g = a0SplitL biclique g
-    where
-      edges = mapMaybe extractSimpleA0Rule g
       biclique = (nub' (map fst edges), nub' (map snd edges))
 
 refs :: Term -> [NonTerm]
@@ -181,13 +160,13 @@ simpl g = foldr elimDef g defbls
 simplFull :: Grammar -> Grammar
 simplFull g = foldr elimDef g defbls
     where
-      defbls = map lhs $ mapMaybe (unambDef g) (map lhs g)
+      defbls = map lhs $ mapMaybe (unambDef g . lhs) g
 
 subterms :: Term -> [Term]
 subterms t@(App _ xs) = t : concatMap subterms xs
 
 minimalDAG :: [Term] -> Grammar
-minimalDAG lang = simpl $ (abbrevProds ++) $ map ((Prod (NT 0 0)) . abbrev) lang
+minimalDAG lang = simpl $ (abbrevProds ++) $ map (Prod (NT 0 0) . abbrev) lang
     where
       subtermAbbrevs = zip (nub' $ concatMap subterms lang) [1..] :: [(Term, Int)]
       abbrev t = App (Var (NT i 0)) [] where Just i = lookup t subtermAbbrevs
