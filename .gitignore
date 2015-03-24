@@ -1,3 +1,4 @@
 /dist
 .*.swp
 shell.nix
+*.prof

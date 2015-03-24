@@ -1,5 +1,6 @@
 module Reforest where
 import Control.Arrow
+import Control.Monad
 import Data.List
 import Data.Function
 import Data.Maybe
@@ -120,11 +121,18 @@ splitR a (ss, rs) g = newProds ++ filter (not . isSubsumed) g
     newProds = [ Prod a (App s [App (Var newNT) []]) | s <- ss ]
             ++ [ Prod newNT (App r []) | r <- rs ]
 
-naiveSplitR :: NonTerm -> Grammar -> Grammar
-naiveSplitR a g = splitR a biclique g
-    where
-      edges = mapMaybe extractSimpleARule $ prods a g
-      biclique = (nub' (map fst edges), nub' (map snd edges))
+naiveSplit :: NonTerm -> Grammar -> ([Sym],[Sym])
+naiveSplit a g = (nub' (map fst edges), nub' (map snd edges))
+    where edges = mapMaybe extractSimpleARule $ prods a g
+
+findNaiveSplits :: Grammar -> [(NonTerm, [Sym], [Sym])]
+findNaiveSplits g = do
+    (a,f) <- frequencies (map lhs g)
+    guard $ f > 1
+    let (rr,ss) = naiveSplit a g
+    guard $ length rr > 1
+    guard $ length ss > 1
+    return (a, rr, ss)
 
 refs :: Term -> [NonTerm]
 refs (App (Var n) xs) = n : concatMap refs xs
@@ -162,6 +170,24 @@ simplFull g = foldr elimDef g defbls
     where
       defbls = map lhs $ mapMaybe (unambDef g . lhs) g
 
+tryIntroNT :: Grammar -> Maybe Grammar
+tryIntroNT g =
+    case findNaiveSplits g of
+      [] -> Nothing
+      splits -> Just $ foldr (\(a, rr,ss) -> splitR a (rr,ss)) g splits
+
+nTryIntroNT :: Grammar -> Grammar
+nTryIntroNT g =
+    case tryIntroNT g of
+      Just g' -> nTryIntroNT $ simpl $ digramCompression g'
+      Nothing -> g
+
+langToGrammar :: [Term] -> Grammar
+langToGrammar = map (Prod (NT 0 0))
+
+findTratGrammar :: [Term] -> Grammar
+findTratGrammar = simplFull . nTryIntroNT . digramCompression . langToGrammar
+
 subterms :: Term -> [Term]
 subterms t@(App _ xs) = t : concatMap subterms xs
 
@@ -171,24 +197,3 @@ minimalDAG lang = simpl $ (abbrevProds ++) $ map (Prod (NT 0 0) . abbrev) lang
       subtermAbbrevs = zip (nub' $ concatMap subterms lang) [1..] :: [(Term, Int)]
       abbrev t = App (Var (NT i 0)) [] where Just i = lookup t subtermAbbrevs
       abbrevProds = map (\(App f xs, i) -> Prod (NT i 0) (App f (map abbrev xs))) subtermAbbrevs
-
--- example data
-
--- exampleLang :: [Term]
--- exampleLang = [f (g c c) (g c c), g (f c c) (f c c), f (g d d) (g d d), g (f d d) (f d d)]
---   where
---     f x y = App (Con "f" 2) [x,y]
---     g x y = App (Con "g" 2) [x,y]
---     c = App (Con "c" 0) []
---     d = App (Con "d" 0) []
-
-exampleLang :: [Term]
-exampleLang = concatMap (\i -> map (r i) sq) [0..9]
-  where
-    sq = take 100 $ iterate f c
-    f x = App (Con "f" 1) [x]
-    r i x = App (Con ("r" ++ show (i :: Int)) 1) [x]
-    c = App (Con "c" 0) []
-
-exampleG :: Grammar
-exampleG = [ Prod (NT 0 0) t | t <- exampleLang ]
