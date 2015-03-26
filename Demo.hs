@@ -12,7 +12,7 @@ import Data.List
 exampleLang :: [Term]
 exampleLang = concatMap (\i -> map (r i) sq) [0..9]
   where
-    sq = take 100 $ iterate f c
+    sq = take 50 $ iterate f c
     f x = App (Con "f" 1) [x]
     r i x = App (Con ("r" ++ show (i :: Int)) 1) [x]
     c = App (Con "c" 0) []

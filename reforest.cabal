@@ -16,10 +16,10 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:    Reforest
+  exposed-modules:    Reforest, Reforest.Parser
   -- other-modules:       
   -- other-extensions:    
-  build-depends:       base >=4.7 && <4.8, containers
+  build-depends:       base >=4.7 && <4.8, containers, parsec
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -27,4 +27,4 @@ executable demo
   hs-source-dirs:      src
   main-is:             ../Demo.hs
   default-language:    Haskell2010
-  build-depends:       base >=4.7 && <4.8, containers
+  build-depends:       base >=4.7 && <4.8, containers, parsec
