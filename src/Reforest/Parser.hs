@@ -17,23 +17,23 @@ psym2sym (PBnd _) _ = error "non-nullary bound variable"
 nt :: Parser ParsedSym
 nt = do
     _ <- char 'A'
-    num <- many digit
+    num <- many1 digit
     return $ PNT (read num)
 
 bnd :: Parser ParsedSym
 bnd = do
     _ <- char 'x'
-    num <- many digit
+    num <- many1 digit
     return $ PBnd (read num)
 
 con :: Parser ParsedSym
 con = PCon `liftM` many (noneOf "(,)")
 
 psym :: Parser ParsedSym
-psym = try nt <|> try bnd <|> con
+psym = (try nt <|> try bnd <|> con) <* spaces
 
 arguments :: Parser [Term]
-arguments = between (char '(') (char ')') $ sepBy term (char ',')
+arguments = between (char '(' <* spaces) (char ')' <* spaces) $ sepBy term (char ',' <* spaces)
 
 term :: Parser Term
 term = do
@@ -42,4 +42,5 @@ term = do
     return $ App (psym2sym f (length xs)) xs
 
 parseTerm :: String -> Either ParseError Term
-parseTerm = parse term "parseTerm"
+parseTerm = parse onlyTerm "parseTerm"
+  where onlyTerm = do { t <- term; eof; return t }
