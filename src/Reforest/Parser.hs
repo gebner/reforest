@@ -27,7 +27,7 @@ bnd = do
     return $ PBnd (read num)
 
 con :: Parser ParsedSym
-con = PCon `liftM` many alphaNum
+con = PCon `liftM` many (noneOf "(,)")
 
 psym :: Parser ParsedSym
 psym = try nt <|> try bnd <|> con
