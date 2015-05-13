@@ -1,8 +1,9 @@
 module Reforest.Parser where
-import Reforest
+import Reforest.Grammar
 import Text.Parsec
 import Text.Parsec.String
 import Control.Monad
+import Data.Char
 
 data ParsedSym = PNT Int | PCon String | PBnd Int
                deriving (Eq, Ord, Show)
