@@ -114,25 +114,6 @@ refs (App _ xs) = concatMap refs xs
 singleRefd :: Grammar -> [NonTerm]
 singleRefd = map fst . filter ((==1) . snd) . frequencies . concatMap (refs . rhs)
 
-unambDef :: Grammar -> NonTerm -> Maybe Production
-unambDef g a = case prods a g of
-                 [p] -> Just p
-                 _ -> Nothing
-
-elimDef :: NonTerm -> Grammar -> Grammar
-elimDef n g = map elimDef' (filter ((/= n) . lhs) g)
-  where elimDef' (Prod a t) = Prod a (subst p t)
-        Just p = unambDef g n
-
-subst :: Production -> Term -> Term
-subst p@(Prod a t) (App (Var a') xs)
-  | a == a' = subst' (map (subst p) xs) t
-subst p (App f xs) = App f (map (subst p) xs)
-
-subst' :: [Term] -> Term -> Term
-subst' as (App (Bnd i) []) = as !! i
-subst' as (App f xs) = App f (map (subst' as) xs)
-
 simpl :: Grammar -> Grammar
 simpl g = foldr elimDef g defbls
     where

@@ -52,3 +52,37 @@ type Grammar = [Production]
 
 prods :: NonTerm -> Grammar -> Grammar
 prods a = filter ((== a) . lhs)
+
+nonTerms :: Grammar -> [NonTerm]
+nonTerms = nub' . map lhs
+
+projections :: Grammar -> [Grammar]
+projections g = sequence [ prods a g | a <- nonTerms g ]
+
+unambDef :: Grammar -> NonTerm -> Maybe Production
+unambDef g a = case prods a g of
+                 [p] -> Just p
+                 _ -> Nothing
+
+subst :: Production -> Term -> Term
+subst p@(Prod a t) (App (Var a') xs)
+  | a == a' = subst' (map (subst p) xs) t
+subst p (App f xs) = App f (map (subst p) xs)
+
+subst' :: [Term] -> Term -> Term
+subst' as (App (Bnd i) []) = as !! i
+subst' as (App f xs) = App f (map (subst' as) xs)
+
+elimDef :: NonTerm -> Grammar -> Grammar
+elimDef n g = map elimDef' (filter ((/= n) . lhs) g)
+  where elimDef' (Prod a t) = Prod a (subst p t)
+        Just p = unambDef g n
+
+genLang'' :: NonTerm -> Grammar -> [Term]
+genLang'' a g = map rhs $ prods a $ foldr elimDef g (nonTerms g \\ [a])
+
+genLang' :: NonTerm -> Grammar -> [Term]
+genLang' a g = nub' (projections g >>= genLang'' a)
+
+genLang :: Grammar -> [Term]
+genLang = genLang' (NT 0 0)
