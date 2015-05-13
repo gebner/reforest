@@ -1,5 +1,6 @@
 import Reforest
 import Data.List
+import Data.Either
 
 -- exampleLang :: [Term]
 -- exampleLang = [f (g c c) (g c c), g (f c c) (f c c), f (g d d) (g d d), g (f d d) (f d d)]
@@ -28,6 +29,14 @@ exampleLang2 = l 5
     l :: Int -> [Term]
     l 0 = [c,d]
     l i = do { t <- l (i-1); [f t t, g t t] }
+
+exampleTermSet = rights $ map parseTerm ["tuple5(identity,a,b,a)","tuple5(a,c,multiply(a,c),multiply(b,c))","tuple4(a)","tuple4(b)","tuple4(multiply(b,c))","tuple3(identity,b,a,c,multiply(b,c),multiply(b,c))","tuple2(a,b,identity,a)","tuple2(b,a,identity,b)","tuple1(b,c)","tuple1(a,c))"]
+
+termsFromFile :: FilePath -> IO [Term]
+termsFromFile fn = do
+  cont <- readFile fn
+  let Right terms = mapM parseTerm (lines cont)
+  return terms
 
 main :: IO ()
 main = mapM_ print $ sort $ findTratGrammar exampleLang2
