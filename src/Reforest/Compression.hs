@@ -23,8 +23,8 @@ listDigrams = foldr (listDigrams' . rhs) []
 listRigidTrigrams' :: Term -> [Ngram] -> [Ngram]
 listRigidTrigrams' (App s xs) rest =
     [ RigidTrigram s i j |
-        (i, App r1 _) <- zip [0..] xs,
-        (j, App r2 _) <- zip [0..] xs,
+        (i, r1) <- zip [0..] xs,
+        (j, r2) <- zip [0..] xs,
         i < j, r1 == r2
     ] ++ foldr listRigidTrigrams' rest xs
 
