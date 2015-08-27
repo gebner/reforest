@@ -30,6 +30,23 @@ exampleLang2 = l 5
     l 0 = [c,d]
     l i = do { t <- l (i-1); [f t t, g t t] }
 
+exampleLang3 :: [Term]
+exampleLang3 = l n
+  where
+    n = 5
+
+    f x y = App (Con "h" 1) [App (Con "f" 2) [x,y]]
+    g x y = App (Con "g" 2) [x,y]
+    c = App (Con "c" 0) []
+    d = App (Con "d" 0) []
+
+    numeral 0 = App (Con "z" 0) []
+    numeral i = App (Con "s" 1) [numeral (i-1)]
+
+    l :: Int -> [Term]
+    l 0 = [c,d]
+    l i = do { t <- l (i-1); [f t (numeral (n-i)), g t (numeral (n-i))] }
+
 exampleTermSet = rights $ map parseTerm ["tuple5(identity,a,b,a)","tuple5(a,c,multiply(a,c),multiply(b,c))","tuple4(a)","tuple4(b)","tuple4(multiply(b,c))","tuple3(identity,b,a,c,multiply(b,c),multiply(b,c))","tuple2(a,b,identity,a)","tuple2(b,a,identity,b)","tuple1(b,c)","tuple1(a,c))"]
 
 termsFromFile :: FilePath -> IO [Term]
