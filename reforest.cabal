@@ -16,6 +16,12 @@ library
   default-language: Haskell2010
   build-depends: base >=4.7 && <4.9, containers, parsec
 
+executable reforest
+  hs-source-dirs: src
+  default-language: Haskell2010
+  main-is: ../Main.hs
+  build-depends: base >=4.7 && <4.9, containers, parsec
+
 executable demo
   hs-source-dirs: src
   default-language: Haskell2010
