@@ -107,6 +107,40 @@ findNaiveSplits g = do
     guard $ length ss > 1
     return (a, rr, ss)
 
+extractMultiARule :: Production -> Maybe (Sym, [Term])
+extractMultiARule (Prod (NT _ _) (App s args)) = Just (s, args)
+-- extractMultiARule _ = Nothing
+
+multiSplitR :: (NonTerm, [Sym], Int, [[Term]]) -> Grammar -> Grammar
+multiSplitR (a, ss, arityR, rs) g = newProds ++ filter (not . isSubsumed) g
+  where
+    isSubsumed p@(Prod b _) = a == b
+      -- case extractMultiARule p of
+      --   Just (s, r) -> a == b && s `elem` ss && r `elem` rs
+      --   Nothing -> False
+    newNT = NT (maxNonTermNo g + 1) arityR
+    newProds = [ Prod a (App (Var newNT) r) | r <- rs ]
+            ++ [ Prod newNT (App s [ App (Bnd i) [] | i <- [0 .. arity s - 1] ]) | s <- ss ]
+
+naiveMultiSplit :: NonTerm -> Grammar -> ([Sym],[[Term]])
+naiveMultiSplit a g = (nub' (map fst edges'), nub' (map snd edges'))
+    where
+      edges = mapMaybe extractMultiARule $ prods a g
+      maxLength = maximum $ map (length.snd) edges
+      edges' = flip map edges $ \(r,s) ->
+        (r, take maxLength (s ++ repeat (App (Con "dummy" 0) [])))
+
+findNaiveMultiSplits :: Grammar -> [(NonTerm, [Sym], Int, [[Term]])]
+findNaiveMultiSplits g = do
+    (a,f) <- frequencies (map lhs g)
+    guard $ f > 1
+    let (rr,ss) = naiveMultiSplit a g
+    guard $ length rr > 1
+    guard $ length ss > 1
+    guard $ length rr + length ss <= f
+    return (a, rr, length (head ss), ss)
+
+
 refs :: Term -> [NonTerm]
 refs (App (Var n) xs) = n : concatMap refs xs
 refs (App _ xs) = concatMap refs xs
@@ -130,9 +164,15 @@ tryIntroNT g =
       [] -> Nothing
       splits -> Just $ foldr (\(a, rr,ss) -> splitR a (rr,ss)) g splits
 
+tryIntroNT' :: Grammar -> Maybe Grammar
+tryIntroNT' g =
+    case findNaiveMultiSplits g of
+      [] -> Nothing
+      splits -> Just $ foldr multiSplitR g splits
+
 nTryIntroNT :: Grammar -> Grammar
 nTryIntroNT g =
-    case tryIntroNT g of
+    case tryIntroNT' g of
       Just g' -> nTryIntroNT $ simpl $ ngramCompression g'
       Nothing -> g
 
